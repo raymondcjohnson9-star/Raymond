@@ -3,12 +3,19 @@ package com.raymond.assistant
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import android.speech.RecognitionListener
-import android.speech.tts.TextToSpeech
+import android.speech.SpeechRecognizer
 import android.view.Gravity
+import android.view.View
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Color
+import android.os.Handler
+import android.os.Looper
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -16,27 +23,31 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import java.util.Locale
+import kotlin.math.sin
 
-class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
-    private var speechRecognizer: SpeechRecognizer? = null
-    private var textToSpeech: TextToSpeech? = null
-    private lateinit var statusView: TextView
-    private lateinit var transcriptView: TextView
-    private lateinit var listenButton: Button
+class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInitListener {
+    private var recognizer: SpeechRecognizer? = null
+    private var tts: android.speech.tts.TextToSpeech? = null
+    private lateinit var status: TextView
+    private lateinit var transcript: TextView
+    private lateinit var orb: OrbView
+    private lateinit var backgroundButton: Button
 
     private val audioPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) startListening() else statusView.text = "Microphone permission is needed for voice input."
+        if (granted) startOneShotListening() else status.text = "Microphone permission is required for voice commands."
+    }
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) enableBackgroundMode() else status.text = "Allow notifications so Android can show the background microphone indicator."
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        textToSpeech = TextToSpeech(this, this)
+        tts = android.speech.tts.TextToSpeech(this, this)
         buildInterface()
         if (SpeechRecognizer.isRecognitionAvailable(this)) {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+            recognizer = SpeechRecognizer.createSpeechRecognizer(this)
         } else {
-            statusView.text = "Speech recognition is not available on this device."
-            listenButton.isEnabled = false
+            status.text = "Speech recognition is unavailable on this device."
         }
     }
 
@@ -44,89 +55,176 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(28, 40, 28, 32)
-            setBackgroundColor(android.graphics.Color.rgb(8, 13, 24))
+            setPadding(28, 28, 28, 24)
+            setBackgroundColor(Color.rgb(5, 10, 22))
         }
         val title = TextView(this).apply {
             text = "R A Y M O N D"
-            textSize = 28f
+            textSize = 25f
+            letterSpacing = 0.18f
             gravity = Gravity.CENTER
-            setTextColor(android.graphics.Color.rgb(0, 217, 255))
+            setTextColor(Color.rgb(90, 225, 255))
         }
-        statusView = TextView(this).apply {
-            text = "PERSONAL ASSISTANT • READY"
-            textSize = 13f
+        val subtitle = TextView(this).apply {
+            text = "PERSONAL VOICE INTELLIGENCE"
+            textSize = 10f
+            letterSpacing = 0.18f
             gravity = Gravity.CENTER
-            setTextColor(android.graphics.Color.LTGRAY)
+            setTextColor(Color.rgb(115, 145, 170))
         }
-        transcriptView = TextView(this).apply {
-            text = "Tap the microphone and speak a command."
-            textSize = 18f
+        orb = OrbView(this)
+        status = TextView(this).apply {
+            text = "SYSTEM STANDBY"
+            textSize = 12f
+            letterSpacing = 0.12f
             gravity = Gravity.CENTER
-            setTextColor(android.graphics.Color.WHITE)
-            setPadding(8, 36, 8, 36)
+            setTextColor(Color.rgb(92, 218, 255))
         }
-        listenButton = Button(this).apply {
-            text = "TALK TO RAYMOND"
+        transcript = TextView(this).apply {
+            text = "Say “Hey Raymond” when background mode is enabled."
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            setPadding(12, 18, 12, 18)
+        }
+        val talkButton = Button(this).apply {
+            text = "TALK NOW"
+            isAllCaps = false
             setOnClickListener {
-                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                    startListening()
-                } else audioPermission.launch(Manifest.permission.RECORD_AUDIO)
+                if (hasAudioPermission()) startOneShotListening()
+                else audioPermission.launch(Manifest.permission.RECORD_AUDIO)
             }
         }
-        val note = TextView(this).apply {
-            text = "VOICE INTERFACE • EARLY BUILD\nAI connection and phone actions will be added in later stages."
-            textSize = 12f
+        backgroundButton = Button(this).apply {
+            text = "ENABLE BACKGROUND MODE"
+            isAllCaps = false
+            setOnClickListener {
+                if (!hasAudioPermission()) audioPermission.launch(Manifest.permission.RECORD_AUDIO)
+                else if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else enableBackgroundMode()
+            }
+        }
+        val footnote = TextView(this).apply {
+            text = "LOCAL COMMAND MODE • MICROPHONE USE IS SHOWN BY ANDROID"
+            textSize = 9f
+            letterSpacing = 0.08f
             gravity = Gravity.CENTER
-            setTextColor(android.graphics.Color.GRAY)
-            setPadding(12, 36, 12, 0)
+            setTextColor(Color.rgb(95, 115, 140))
+            setPadding(8, 20, 8, 0)
         }
         root.addView(title, LinearLayout.LayoutParams(-1, -2))
-        root.addView(statusView, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 12 })
-        root.addView(transcriptView, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 32 })
-        root.addView(listenButton, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 16 })
-        root.addView(note, LinearLayout.LayoutParams(-1, -2))
+        root.addView(subtitle, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 5 })
+        root.addView(orb, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = 10; bottomMargin = 4 })
+        root.addView(status, LinearLayout.LayoutParams(-1, -2))
+        root.addView(transcript, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 4 })
+        root.addView(talkButton, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
+        root.addView(backgroundButton, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
+        root.addView(footnote, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
     }
 
-    private fun startListening() {
-        val recognizer = speechRecognizer ?: return
+    private fun hasAudioPermission() =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+    private fun enableBackgroundMode() {
+        val service = Intent(this, RaymondListeningService::class.java)
+        ContextCompat.startForegroundService(this, service)
+        status.text = "BACKGROUND MODE STARTING"
+        transcript.text = "RAYMOND will listen for “Hey Raymond”. Use the notification to stop."
+        orb.mode = OrbView.Mode.LISTENING
+        backgroundButton.text = "BACKGROUND MODE ENABLED"
+    }
+
+    private fun startOneShotListening() {
+        val speech = recognizer ?: return
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to RAYMOND")
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
         }
-        statusView.text = "LISTENING…"
-        recognizer.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) { statusView.text = "LISTENING…" }
+        status.text = "LISTENING"
+        orb.mode = OrbView.Mode.LISTENING
+        speech.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {}
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() { statusView.text = "PROCESSING…" }
-            override fun onError(error: Int) { statusView.text = "Could not hear that. Tap to try again." }
+            override fun onEndOfSpeech() { status.text = "THINKING" ; orb.mode = OrbView.Mode.THINKING }
+            override fun onError(error: Int) { status.text = "READY"; orb.mode = OrbView.Mode.IDLE }
             override fun onResults(results: Bundle?) {
-                val words = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: "I didn't catch that."
-                transcriptView.text = "You said:\n$words"
-                speak("I heard you say: $words. My AI connection is not set up yet.")
-                statusView.text = "VOICE INPUT RECEIVED"
+                val words = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
+                transcript.text = words.ifBlank { "I didn't catch that." }
+                val reply = LocalAssistant.respond(this@MainActivity, words)
+                status.text = "RAYMOND RESPONDED"
+                orb.mode = OrbView.Mode.SPEAKING
+                speak(reply)
             }
             override fun onPartialResults(partialResults: Bundle?) {}
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
-        recognizer.startListening(intent)
+        speech.startListening(intent)
     }
 
     private fun speak(message: String) {
-        textToSpeech?.speak(message, TextToSpeech.QUEUE_FLUSH, null, "raymond_reply")
+        tts?.speak(message, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "raymond_reply")
+        Handler(Looper.getMainLooper()).postDelayed({ if (!isFinishing) orb.mode = OrbView.Mode.IDLE }, 1800)
     }
 
-    override fun onInit(status: Int) {
-        if (status == TextToSpeech.SUCCESS) textToSpeech?.language = Locale.getDefault()
+    override fun onInit(result: Int) {
+        if (result == android.speech.tts.TextToSpeech.SUCCESS) tts?.language = Locale.getDefault()
     }
 
     override fun onDestroy() {
-        speechRecognizer?.destroy()
-        textToSpeech?.shutdown()
+        recognizer?.destroy()
+        tts?.shutdown()
         super.onDestroy()
     }
+}
+
+class OrbView(context: android.content.Context) : View(context) {
+    enum class Mode { IDLE, LISTENING, THINKING, SPEAKING }
+    var mode: Mode = Mode.IDLE
+        set(value) { field = value; invalidate() }
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var frame = 0
+    private val handler = Handler(Looper.getMainLooper())
+    private val pulse = object : Runnable {
+        override fun run() { frame++; invalidate(); handler.postDelayed(this, 40) }
+    }
+    init { handler.post(pulse) }
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val cx = width / 2f
+        val cy = height / 2f
+        val base = (width.coerceAtMost(height) * 0.27f)
+        val wave = sin(frame * 0.055).toFloat()
+        val active = if (mode == Mode.IDLE) 0.025f else 0.075f
+        val radius = base * (1f + wave * active)
+        val glow = when (mode) {
+            Mode.LISTENING -> Color.rgb(0, 220, 255)
+            Mode.THINKING -> Color.rgb(125, 100, 255)
+            Mode.SPEAKING -> Color.rgb(60, 255, 210)
+            Mode.IDLE -> Color.rgb(0, 155, 210)
+        }
+        paint.style = Paint.Style.FILL
+        paint.color = Color.argb(22, Color.red(glow), Color.green(glow), Color.blue(glow))
+        canvas.drawCircle(cx, cy, radius * 1.75f, paint)
+        paint.color = Color.argb(34, Color.red(glow), Color.green(glow), Color.blue(glow))
+        canvas.drawCircle(cx, cy, radius * 1.38f, paint)
+        val rect = RectF(cx - radius, cy - radius, cx + radius, cy + radius)
+        val shader = android.graphics.RadialGradient(cx - radius * .28f, cy - radius * .32f, radius * 1.5f,
+            intArrayOf(Color.WHITE, glow, Color.rgb(5, 35, 75)), null, android.graphics.Shader.TileMode.CLAMP)
+        paint.shader = shader
+        canvas.drawOval(rect, paint)
+        paint.shader = null
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 2.2f
+        paint.color = Color.argb(175, 125, 235, 255)
+        canvas.drawCircle(cx, cy, radius * (1.13f + wave * 0.025f), paint)
+        paint.style = Paint.Style.FILL
+        paint.color = Color.argb(160, 175, 245, 255)
+        canvas.drawCircle(cx - radius * .28f, cy - radius * .34f, radius * .12f, paint)
+    }
+    override fun onDetachedFromWindow() { handler.removeCallbacks(pulse); super.onDetachedFromWindow() }
 }
