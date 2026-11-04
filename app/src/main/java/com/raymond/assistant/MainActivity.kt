@@ -155,10 +155,24 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
             override fun onResults(results: Bundle?) {
                 val words = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
                 transcript.text = words.ifBlank { "I didn't catch that." }
-                val reply = LocalAssistant.respond(this@MainActivity, words)
-                status.text = "RAYMOND RESPONDED"
-                orb.mode = OrbView.Mode.SPEAKING
-                speak(reply)
+                val localReply = try { PhoneCommandRouter.handle(this@MainActivity, words) } catch (_: Exception) { "I couldn't complete that phone action." }
+                if (localReply != null) {
+                    status.text = "PHONE ACTION"
+                    orb.mode = OrbView.Mode.SPEAKING
+                    speak(localReply)
+                } else {
+                    status.text = "THINKING"
+                    orb.mode = OrbView.Mode.THINKING
+                    AssistantApi.ask(words) { result ->
+                        runOnUiThread {
+                            val reply = result.getOrElse { it.message ?: "I couldn't connect to the AI service." }
+                            status.text = if (result.isSuccess) "RAYMOND RESPONDED" else "CONNECTION ISSUE"
+                            orb.mode = OrbView.Mode.SPEAKING
+                            transcript.text = "$words\n\n$reply"
+                            speak(reply)
+                        }
+                    }
+                }
             }
             override fun onPartialResults(partialResults: Bundle?) {}
             override fun onEvent(eventType: Int, params: Bundle?) {}
