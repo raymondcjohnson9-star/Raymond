@@ -15,6 +15,8 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
 import android.widget.Button
@@ -63,14 +65,16 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setPadding(28, 28, 28, 24)
-            setBackgroundColor(Color.rgb(5, 10, 22))
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(3, 8, 22), Color.rgb(7, 18, 38), Color.rgb(2, 7, 18)))
         }
         val title = TextView(this).apply {
             text = "R A Y M O N D"
             textSize = 25f
             letterSpacing = 0.18f
             gravity = Gravity.CENTER
-            setTextColor(Color.rgb(90, 225, 255))
+            setTextColor(Color.rgb(130, 240, 255))
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setShadowLayer(22f, 0f, 0f, Color.rgb(0, 190, 255))
         }
         val subtitle = TextView(this).apply {
             text = "PERSONAL VOICE INTELLIGENCE"
@@ -85,14 +89,16 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
             textSize = 12f
             letterSpacing = 0.12f
             gravity = Gravity.CENTER
-            setTextColor(Color.rgb(92, 218, 255))
+            setTextColor(Color.rgb(90, 235, 255))
+            setShadowLayer(12f, 0f, 0f, Color.rgb(0, 170, 255))
         }
         transcript = TextView(this).apply {
             text = "Say “Hey Raymond” when background mode is enabled."
             textSize = 15f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            setPadding(12, 18, 12, 18)
+            setTextColor(Color.rgb(220, 245, 255))
+            setPadding(18, 20, 18, 20)
+            background = neonPanel(Color.rgb(8, 24, 43), Color.rgb(0, 170, 220), 18f)
         }
         val talkButton = Button(this).apply {
             text = "TALK NOW"
@@ -117,6 +123,9 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
             isAllCaps = false
             setOnClickListener { imagePicker.launch("image/*") }
         }
+        listOf(talkButton, scanButton, backgroundButton).forEachIndexed { index, button ->
+            styleNeonButton(button, index == 0)
+        }
         val footnote = TextView(this).apply {
             text = "LOCAL COMMAND MODE • MICROPHONE USE IS SHOWN BY ANDROID"
             textSize = 9f
@@ -135,6 +144,32 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
         root.addView(backgroundButton, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
         root.addView(footnote, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
+    }
+
+    private fun neonPanel(fill: Int, stroke: Int, radiusDp: Float): GradientDrawable =
+        GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radiusDp * resources.displayMetrics.density
+            setColor(fill)
+            setStroke((1.2f * resources.displayMetrics.density).toInt().coerceAtLeast(1), stroke)
+        }
+
+    private fun styleNeonButton(button: Button, primary: Boolean) {
+        val cyan = Color.rgb(0, 205, 255)
+        button.background = GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            if (primary) intArrayOf(Color.rgb(0, 105, 160), Color.rgb(0, 65, 125))
+            else intArrayOf(Color.rgb(12, 34, 58), Color.rgb(8, 22, 42))
+        ).apply {
+            cornerRadius = 16f * resources.displayMetrics.density
+            setStroke((1.3f * resources.displayMetrics.density).toInt(), if (primary) cyan else Color.rgb(0, 125, 175))
+        }
+        button.setTextColor(Color.rgb(205, 245, 255))
+        button.textSize = 13f
+        button.typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        button.letterSpacing = 0.06f
+        button.elevation = 10f * resources.displayMetrics.density
+        button.setPadding(18, 15, 18, 15)
     }
 
     private fun hasAudioPermission() =
@@ -243,7 +278,10 @@ class OrbView(context: android.content.Context) : View(context) {
     private val pulse = object : Runnable {
         override fun run() { frame++; invalidate(); handler.postDelayed(this, 40) }
     }
-    init { handler.post(pulse) }
+    init {
+        setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        handler.post(pulse)
+    }
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val cx = width / 2f
@@ -259,20 +297,36 @@ class OrbView(context: android.content.Context) : View(context) {
             Mode.IDLE -> Color.rgb(0, 155, 210)
         }
         paint.style = Paint.Style.FILL
-        paint.color = Color.argb(22, Color.red(glow), Color.green(glow), Color.blue(glow))
-        canvas.drawCircle(cx, cy, radius * 1.75f, paint)
-        paint.color = Color.argb(34, Color.red(glow), Color.green(glow), Color.blue(glow))
-        canvas.drawCircle(cx, cy, radius * 1.38f, paint)
+        paint.color = Color.argb(18, Color.red(glow), Color.green(glow), Color.blue(glow))
+        paint.setShadowLayer(radius * 0.75f, 0f, 0f, glow)
+        canvas.drawCircle(cx, cy, radius * 1.78f, paint)
+        paint.clearShadowLayer()
+        paint.color = Color.argb(38, Color.red(glow), Color.green(glow), Color.blue(glow))
+        canvas.drawCircle(cx, cy, radius * 1.42f, paint)
+        paint.color = Color.argb(24, Color.red(glow), Color.green(glow), Color.blue(glow))
+        canvas.drawCircle(cx, cy, radius * 1.22f, paint)
         val rect = RectF(cx - radius, cy - radius, cx + radius, cy + radius)
         val shader = android.graphics.RadialGradient(cx - radius * .28f, cy - radius * .32f, radius * 1.5f,
             intArrayOf(Color.WHITE, glow, Color.rgb(5, 35, 75)), null, android.graphics.Shader.TileMode.CLAMP)
         paint.shader = shader
+        paint.setShadowLayer(radius * 0.38f, 0f, 0f, glow)
         canvas.drawOval(rect, paint)
         paint.shader = null
+        paint.clearShadowLayer()
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = 2.2f
-        paint.color = Color.argb(175, 125, 235, 255)
+        paint.color = Color.argb(210, 145, 245, 255)
         canvas.drawCircle(cx, cy, radius * (1.13f + wave * 0.025f), paint)
+        canvas.save()
+        canvas.rotate(frame * if (mode == Mode.THINKING) 2.2f else 0.65f, cx, cy)
+        paint.strokeWidth = 3.2f
+        paint.strokeCap = Paint.Cap.ROUND
+        paint.color = Color.argb(220, 95, 235, 255)
+        canvas.drawArc(RectF(cx - radius * 1.30f, cy - radius * 1.30f, cx + radius * 1.30f, cy + radius * 1.30f), 205f, 92f, false, paint)
+        paint.strokeWidth = 1.6f
+        paint.color = Color.argb(145, 130, 115, 255)
+        canvas.drawArc(RectF(cx - radius * 1.43f, cy - radius * 1.43f, cx + radius * 1.43f, cy + radius * 1.43f), 28f, 65f, false, paint)
+        canvas.restore()
         paint.style = Paint.Style.FILL
         paint.color = Color.argb(160, 175, 245, 255)
         canvas.drawCircle(cx - radius * .28f, cy - radius * .34f, radius * .12f, paint)
