@@ -37,13 +37,18 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
     private lateinit var status: TextView
     private lateinit var transcript: TextView
     private lateinit var orb: OrbView
-    private lateinit var backgroundButton: Button
+    private var pendingBackgroundActivation = false
 
     private val audioPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) startOneShotListening() else status.text = "Microphone permission is required for voice commands."
+        if (granted) {
+            if (pendingBackgroundActivation) continueBackgroundActivation() else startOneShotListening()
+        } else {
+            pendingBackgroundActivation = false
+            status.text = "Microphone permission is required for voice commands."
+        }
     }
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) enableBackgroundMode() else status.text = "Allow notifications so Android can show the background microphone indicator."
+        if (granted) enableBackgroundMode() else status.text = "Allow notifications so Android can show when RAYMOND is active."
     }
     private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) scanImage(uri)
@@ -100,34 +105,16 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
             setPadding(18, 20, 18, 20)
             background = neonPanel(Color.rgb(8, 24, 43), Color.rgb(0, 170, 220), 18f)
         }
-        val talkButton = Button(this).apply {
-            text = "TALK NOW"
-            isAllCaps = false
-            setOnClickListener {
-                if (hasAudioPermission()) startOneShotListening()
-                else audioPermission.launch(Manifest.permission.RECORD_AUDIO)
-            }
-        }
-        backgroundButton = Button(this).apply {
-            text = "ENABLE BACKGROUND MODE"
-            isAllCaps = false
-            setOnClickListener {
-                if (!hasAudioPermission()) audioPermission.launch(Manifest.permission.RECORD_AUDIO)
-                else if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                } else enableBackgroundMode()
-            }
-        }
-        val scanButton = Button(this).apply {
-            text = "SCAN IMAGE / DOCUMENT"
-            isAllCaps = false
-            setOnClickListener { imagePicker.launch("image/*") }
-        }
-        listOf(talkButton, scanButton, backgroundButton).forEachIndexed { index, button ->
-            styleNeonButton(button, index == 0)
+        orb.contentDescription = "RAYMOND animated control hub. Tap to activate background listening. Long-press to scan an image or document."
+        orb.isClickable = true
+        orb.isFocusable = true
+        orb.setOnClickListener { requestBackgroundActivation() }
+        orb.setOnLongClickListener {
+            imagePicker.launch("image/*")
+            true
         }
         val footnote = TextView(this).apply {
-            text = "LOCAL COMMAND MODE • MICROPHONE USE IS SHOWN BY ANDROID"
+            text = "TAP THE CORE TO ACTIVATE  •  LONG-PRESS TO SCAN"
             textSize = 9f
             letterSpacing = 0.08f
             gravity = Gravity.CENTER
@@ -136,12 +123,9 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
         }
         root.addView(title, LinearLayout.LayoutParams(-1, -2))
         root.addView(subtitle, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 5 })
-        root.addView(orb, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = 10; bottomMargin = 4 })
+        root.addView(orb, LinearLayout.LayoutParams(-1, 0, 1.55f).apply { topMargin = 8; bottomMargin = 4 })
         root.addView(status, LinearLayout.LayoutParams(-1, -2))
         root.addView(transcript, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 4 })
-        root.addView(talkButton, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
-        root.addView(scanButton, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
-        root.addView(backgroundButton, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
         root.addView(footnote, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
     }
@@ -175,13 +159,33 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
     private fun hasAudioPermission() =
         ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
+    private fun requestBackgroundActivation() {
+        if (!hasAudioPermission()) {
+            pendingBackgroundActivation = true
+            audioPermission.launch(Manifest.permission.RECORD_AUDIO)
+        } else {
+            continueBackgroundActivation()
+        }
+    }
+
+    private fun continueBackgroundActivation() {
+        pendingBackgroundActivation = false
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            enableBackgroundMode()
+        }
+    }
+
     private fun enableBackgroundMode() {
         val service = Intent(this, RaymondListeningService::class.java)
         ContextCompat.startForegroundService(this, service)
         status.text = "BACKGROUND MODE STARTING"
         transcript.text = "RAYMOND will listen for “Hey Raymond”. Use the notification to stop."
         orb.mode = OrbView.Mode.LISTENING
-        backgroundButton.text = "BACKGROUND MODE ENABLED"
+        orb.contentDescription = "RAYMOND background listening is active. Tap to open the app; use the notification to stop listening."
     }
 
     private fun startOneShotListening() {
