@@ -66,46 +66,43 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
     }
 
     private fun buildInterface() {
+        window.statusBarColor = Color.rgb(2, 6, 18)
+        window.navigationBarColor = Color.rgb(2, 6, 18)
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LOW_PROFILE
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(28, 28, 28, 24)
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(3, 8, 22), Color.rgb(7, 18, 38), Color.rgb(2, 7, 18)))
+            setPadding(22, 30, 22, 24)
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(2, 5, 17), Color.rgb(5, 13, 31), Color.rgb(1, 4, 14))
+            )
         }
+
         val title = TextView(this).apply {
             text = "R A Y M O N D"
-            textSize = 25f
-            letterSpacing = 0.18f
+            textSize = 23f
+            letterSpacing = 0.22f
             gravity = Gravity.CENTER
-            setTextColor(Color.rgb(130, 240, 255))
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            setShadowLayer(22f, 0f, 0f, Color.rgb(0, 190, 255))
+            setTextColor(Color.rgb(175, 247, 255))
+            typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
+            setShadowLayer(28f, 0f, 0f, Color.rgb(0, 190, 255))
         }
         val subtitle = TextView(this).apply {
-            text = "PERSONAL VOICE INTELLIGENCE"
-            textSize = 10f
-            letterSpacing = 0.18f
+            text = "PERSONAL AI  •  VOICE INTERFACE"
+            textSize = 9f
+            letterSpacing = 0.22f
             gravity = Gravity.CENTER
-            setTextColor(Color.rgb(115, 145, 170))
+            setTextColor(Color.rgb(88, 139, 169))
+        }
+
+        val orbFrame = LinearLayout(this).apply {
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.TRANSPARENT)
         }
         orb = OrbView(this)
-        status = TextView(this).apply {
-            text = "SYSTEM STANDBY"
-            textSize = 12f
-            letterSpacing = 0.12f
-            gravity = Gravity.CENTER
-            setTextColor(Color.rgb(90, 235, 255))
-            setShadowLayer(12f, 0f, 0f, Color.rgb(0, 170, 255))
-        }
-        transcript = TextView(this).apply {
-            text = "Say “Hey Raymond” when background mode is enabled."
-            textSize = 15f
-            gravity = Gravity.CENTER
-            setTextColor(Color.rgb(220, 245, 255))
-            setPadding(18, 20, 18, 20)
-            background = neonPanel(Color.rgb(8, 24, 43), Color.rgb(0, 170, 220), 18f)
-        }
-        orb.contentDescription = "RAYMOND animated control hub. Tap to activate background listening. Long-press to scan an image or document."
+        orb.contentDescription = "RAYMOND holographic AI core. Tap to activate the assistant. Long-press to scan an image or document."
         orb.isClickable = true
         orb.isFocusable = true
         orb.setOnClickListener { requestBackgroundActivation() }
@@ -113,20 +110,51 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
             imagePicker.launch("image/*")
             true
         }
-        val footnote = TextView(this).apply {
-            text = "TAP THE CORE TO ACTIVATE  •  LONG-PRESS TO SCAN"
-            textSize = 9f
-            letterSpacing = 0.08f
+        orbFrame.addView(orb, LinearLayout.LayoutParams(-1, -1))
+
+        status = TextView(this).apply {
+            text = "●  SYSTEM STANDBY"
+            textSize = 11f
+            letterSpacing = 0.18f
             gravity = Gravity.CENTER
-            setTextColor(Color.rgb(95, 115, 140))
-            setPadding(8, 20, 8, 0)
+            setTextColor(Color.rgb(83, 225, 255))
+            setShadowLayer(15f, 0f, 0f, Color.rgb(0, 160, 255))
+            setPadding(8, 8, 8, 8)
         }
+
+        transcript = TextView(this).apply {
+            text = "Your intelligent assistant is ready."
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(205, 232, 247))
+            setPadding(18, 16, 18, 16)
+            background = GradientDrawable().apply {
+                cornerRadius = 20f * resources.displayMetrics.density
+                setColor(Color.argb(95, 8, 24, 43))
+                setStroke((1f * resources.displayMetrics.density).toInt().coerceAtLeast(1), Color.argb(105, 0, 174, 220))
+            }
+        }
+
+        val hint = TextView(this).apply {
+            text = "TAP THE CORE TO ACTIVATE     •     HOLD TO SCAN"
+            textSize = 8f
+            letterSpacing = 0.12f
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(65, 103, 132))
+            setPadding(8, 18, 8, 0)
+        }
+
         root.addView(title, LinearLayout.LayoutParams(-1, -2))
-        root.addView(subtitle, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 5 })
-        root.addView(orb, LinearLayout.LayoutParams(-1, 0, 1.55f).apply { topMargin = 8; bottomMargin = 4 })
+        root.addView(subtitle, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 7 })
+        root.addView(orbFrame, LinearLayout.LayoutParams(-1, 0, 1.65f).apply {
+            topMargin = 4
+            bottomMargin = 0
+        })
         root.addView(status, LinearLayout.LayoutParams(-1, -2))
-        root.addView(transcript, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 4 })
-        root.addView(footnote, LinearLayout.LayoutParams(-1, -2))
+        root.addView(transcript, LinearLayout.LayoutParams(-1, -2).apply {
+            topMargin = 8
+        })
+        root.addView(hint, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
     }
 
@@ -274,66 +302,133 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
 
 class OrbView(context: android.content.Context) : View(context) {
     enum class Mode { IDLE, LISTENING, THINKING, SPEAKING }
+
     var mode: Mode = Mode.IDLE
-        set(value) { field = value; invalidate() }
+        set(value) {
+            field = value
+            invalidate()
+        }
+
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var frame = 0
     private val handler = Handler(Looper.getMainLooper())
     private val pulse = object : Runnable {
-        override fun run() { frame++; invalidate(); handler.postDelayed(this, 40) }
+        override fun run() {
+            frame++
+            invalidate()
+            handler.postDelayed(this, 32)
+        }
     }
+
     init {
         setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         handler.post(pulse)
     }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val cx = width / 2f
         val cy = height / 2f
-        val base = (width.coerceAtMost(height) * 0.27f)
-        val wave = sin(frame * 0.055).toFloat()
-        val active = if (mode == Mode.IDLE) 0.025f else 0.075f
-        val radius = base * (1f + wave * active)
+        val base = width.coerceAtMost(height) * 0.205f
+        val time = frame * 0.018f
+        val breathing = kotlin.math.sin(time).toFloat()
+        val active = if (mode == Mode.IDLE) 0.018f else 0.055f
+        val radius = base * (1f + breathing * active)
+
         val glow = when (mode) {
-            Mode.LISTENING -> Color.rgb(0, 220, 255)
-            Mode.THINKING -> Color.rgb(125, 100, 255)
-            Mode.SPEAKING -> Color.rgb(60, 255, 210)
-            Mode.IDLE -> Color.rgb(0, 155, 210)
+            Mode.LISTENING -> Color.rgb(0, 229, 255)
+            Mode.THINKING -> Color.rgb(133, 112, 255)
+            Mode.SPEAKING -> Color.rgb(75, 255, 220)
+            Mode.IDLE -> Color.rgb(0, 178, 235)
         }
+        val cyan = Color.rgb(70, 231, 255)
+        val blue = Color.rgb(55, 116, 255)
+
+        // Wide atmospheric halo behind the holographic core.
         paint.style = Paint.Style.FILL
         paint.color = Color.argb(18, Color.red(glow), Color.green(glow), Color.blue(glow))
-        paint.setShadowLayer(radius * 0.75f, 0f, 0f, glow)
-        canvas.drawCircle(cx, cy, radius * 1.78f, paint)
+        paint.setShadowLayer(radius * 1.25f, 0f, 0f, glow)
+        canvas.drawCircle(cx, cy, radius * 2.35f, paint)
         paint.clearShadowLayer()
-        paint.color = Color.argb(38, Color.red(glow), Color.green(glow), Color.blue(glow))
-        canvas.drawCircle(cx, cy, radius * 1.42f, paint)
-        paint.color = Color.argb(24, Color.red(glow), Color.green(glow), Color.blue(glow))
-        canvas.drawCircle(cx, cy, radius * 1.22f, paint)
-        val rect = RectF(cx - radius, cy - radius, cx + radius, cy + radius)
-        val shader = android.graphics.RadialGradient(cx - radius * .28f, cy - radius * .32f, radius * 1.5f,
-            intArrayOf(Color.WHITE, glow, Color.rgb(5, 35, 75)), null, android.graphics.Shader.TileMode.CLAMP)
+        paint.color = Color.argb(15, 0, 170, 255)
+        canvas.drawCircle(cx, cy, radius * 1.95f, paint)
+
+        // Thin concentric holographic rings.
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 1.2f
+        paint.color = Color.argb(55, 91, 207, 255)
+        canvas.drawCircle(cx, cy, radius * 1.78f, paint)
+        paint.strokeWidth = 1.5f
+        paint.color = Color.argb(90, 73, 196, 255)
+        canvas.drawCircle(cx, cy, radius * 1.52f, paint)
+
+        // Rotating segmented orbital rings.
+        canvas.save()
+        canvas.rotate(frame * if (mode == Mode.THINKING) 1.8f else 0.42f, cx, cy)
+        val ringRect1 = RectF(cx - radius * 1.62f, cy - radius * 1.62f, cx + radius * 1.62f, cy + radius * 1.62f)
+        val ringRect2 = RectF(cx - radius * 1.88f, cy - radius * 1.88f, cx + radius * 1.88f, cy + radius * 1.88f)
+        paint.strokeCap = Paint.Cap.ROUND
+        paint.strokeWidth = 4f
+        paint.color = Color.argb(220, 65, 224, 255)
+        canvas.drawArc(ringRect1, 198f, 74f, false, paint)
+        canvas.drawArc(ringRect1, 18f, 42f, false, paint)
+        paint.strokeWidth = 2.2f
+        paint.color = Color.argb(155, 104, 131, 255)
+        canvas.drawArc(ringRect2, 35f, 62f, false, paint)
+        canvas.drawArc(ringRect2, 220f, 46f, false, paint)
+        paint.strokeWidth = 1.1f
+        paint.color = Color.argb(95, 74, 220, 255)
+        canvas.drawArc(ringRect2, 112f, 38f, false, paint)
+        canvas.restore()
+
+        // Orbiting light nodes.
+        paint.style = Paint.Style.FILL
+        for (i in 0 until 8) {
+            val angle = time * (if (i % 2 == 0) 0.75f else -0.55f) + i * (Math.PI.toFloat() / 4f)
+            val orbit = radius * if (i % 2 == 0) 1.62f else 1.88f
+            val px = cx + kotlin.math.cos(angle) * orbit
+            val py = cy + kotlin.math.sin(angle) * orbit
+            paint.color = if (i % 2 == 0) Color.argb(230, 115, 240, 255) else Color.argb(190, 126, 151, 255)
+            paint.setShadowLayer(12f, 0f, 0f, paint.color)
+            canvas.drawCircle(px, py, if (i % 2 == 0) 3.2f else 2.1f, paint)
+            paint.clearShadowLayer()
+        }
+
+        // Luminous energy shell.
+        paint.style = Paint.Style.FILL
+        val core = RectF(cx - radius, cy - radius, cx + radius, cy + radius)
+        val shader = android.graphics.RadialGradient(
+            cx - radius * 0.30f,
+            cy - radius * 0.36f,
+            radius * 1.55f,
+            intArrayOf(Color.rgb(240, 255, 255), cyan, blue, Color.rgb(3, 16, 49)),
+            floatArrayOf(0f, 0.28f, 0.68f, 1f),
+            android.graphics.Shader.TileMode.CLAMP
+        )
         paint.shader = shader
-        paint.setShadowLayer(radius * 0.38f, 0f, 0f, glow)
-        canvas.drawOval(rect, paint)
+        paint.setShadowLayer(radius * 0.62f, 0f, 0f, glow)
+        canvas.drawCircle(cx, cy, radius * (1.02f + breathing * active), paint)
         paint.shader = null
         paint.clearShadowLayer()
+
+        // Bright glass highlight and fine inner contour.
         paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 2.2f
-        paint.color = Color.argb(210, 145, 245, 255)
-        canvas.drawCircle(cx, cy, radius * (1.13f + wave * 0.025f), paint)
-        canvas.save()
-        canvas.rotate(frame * if (mode == Mode.THINKING) 2.2f else 0.65f, cx, cy)
-        paint.strokeWidth = 3.2f
-        paint.strokeCap = Paint.Cap.ROUND
-        paint.color = Color.argb(220, 95, 235, 255)
-        canvas.drawArc(RectF(cx - radius * 1.30f, cy - radius * 1.30f, cx + radius * 1.30f, cy + radius * 1.30f), 205f, 92f, false, paint)
-        paint.strokeWidth = 1.6f
-        paint.color = Color.argb(145, 130, 115, 255)
-        canvas.drawArc(RectF(cx - radius * 1.43f, cy - radius * 1.43f, cx + radius * 1.43f, cy + radius * 1.43f), 28f, 65f, false, paint)
-        canvas.restore()
+        paint.strokeWidth = 2f
+        paint.color = Color.argb(215, 191, 250, 255)
+        canvas.drawCircle(cx, cy, radius * 1.02f, paint)
+        paint.strokeWidth = 1f
+        paint.color = Color.argb(90, 230, 255, 255)
+        canvas.drawArc(core, 205f, 105f, false, paint)
+
         paint.style = Paint.Style.FILL
-        paint.color = Color.argb(160, 175, 245, 255)
-        canvas.drawCircle(cx - radius * .28f, cy - radius * .34f, radius * .12f, paint)
+        paint.color = Color.argb(175, 235, 255, 255)
+        paint.setShadowLayer(18f, 0f, 0f, cyan)
+        canvas.drawCircle(cx - radius * 0.30f, cy - radius * 0.36f, radius * 0.105f, paint)
+        paint.clearShadowLayer()
     }
-    override fun onDetachedFromWindow() { handler.removeCallbacks(pulse); super.onDetachedFromWindow() }
+
+    override fun onDetachedFromWindow() {
+        handler.removeCallbacks(pulse)
+        super.onDetachedFromWindow()
+    }
 }
