@@ -1,6 +1,7 @@
 package com.raymond.assistant
 
 import android.Manifest
+import android.net.Uri
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -22,6 +23,9 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.util.Locale
 import kotlin.math.sin
 
@@ -38,6 +42,9 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
     }
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) enableBackgroundMode() else status.text = "Allow notifications so Android can show the background microphone indicator."
+    }
+    private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) scanImage(uri)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,6 +112,11 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
                 } else enableBackgroundMode()
             }
         }
+        val scanButton = Button(this).apply {
+            text = "SCAN IMAGE / DOCUMENT"
+            isAllCaps = false
+            setOnClickListener { imagePicker.launch("image/*") }
+        }
         val footnote = TextView(this).apply {
             text = "LOCAL COMMAND MODE • MICROPHONE USE IS SHOWN BY ANDROID"
             textSize = 9f
@@ -119,6 +131,7 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
         root.addView(status, LinearLayout.LayoutParams(-1, -2))
         root.addView(transcript, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 4 })
         root.addView(talkButton, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
+        root.addView(scanButton, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
         root.addView(backgroundButton, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 })
         root.addView(footnote, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
@@ -178,6 +191,30 @@ class MainActivity : AppCompatActivity(), android.speech.tts.TextToSpeech.OnInit
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
         speech.startListening(intent)
+    }
+
+    private fun scanImage(uri: Uri) {
+        status.text = "SCANNING DOCUMENT"
+        orb.mode = OrbView.Mode.THINKING
+        try {
+            val image = InputImage.fromFilePath(this, uri)
+            TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS).process(image)
+                .addOnSuccessListener { result ->
+                    val extracted = result.text.trim()
+                    transcript.text = if (extracted.isBlank()) "No readable text was found." else extracted
+                    status.text = "TEXT SCAN COMPLETE"
+                    speak(if (extracted.isBlank()) "I couldn't find readable text in that image." else "I've extracted the text and displayed it on screen.")
+                    orb.mode = OrbView.Mode.IDLE
+                }
+                .addOnFailureListener {
+                    status.text = "SCAN FAILED"
+                    speak("I couldn't read that image. Please try a clearer picture.")
+                    orb.mode = OrbView.Mode.IDLE
+                }
+        } catch (_: Exception) {
+            status.text = "COULD NOT OPEN IMAGE"
+            orb.mode = OrbView.Mode.IDLE
+        }
     }
 
     private fun speak(message: String) {
