@@ -92,8 +92,15 @@ class RaymondListeningService : Service(), TextToSpeech.OnInitListener {
         if (command.isBlank()) {
             speak("I'm listening. What do you need?")
         } else {
-            val response = LocalAssistant.respond(this, command)
-            speak(response)
+            val localResponse = try { PhoneCommandRouter.handle(this, command) } catch (_: Exception) { "I couldn't complete that phone action." }
+            if (localResponse != null) {
+                speak(localResponse)
+            } else {
+                AssistantApi.ask(command) { result ->
+                    val response = result.getOrElse { it.message ?: "I couldn't connect to the AI service." }
+                    handler.post { if (!stopped) speak(response) }
+                }
+            }
         }
         handler.postDelayed({ readyToProcess = true }, 2500)
     }
