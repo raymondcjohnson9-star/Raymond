@@ -29,6 +29,7 @@ class RaymondListeningService : Service(), TextToSpeech.OnInitListener {
     private var isListening = false
     private var isSpeaking = false
     private var readyToProcess = true
+    private var conversationActive = false
     private var retryDelayMs = INITIAL_RETRY_MS
 
     private val restartRunnable = Runnable {
@@ -182,22 +183,37 @@ class RaymondListeningService : Service(), TextToSpeech.OnInitListener {
 
         val normalized = phrase.lowercase(Locale.getDefault()).trim()
         val wakePhraseFound = normalized.contains("hey raymond") || normalized.startsWith("raymond")
-        if (!wakePhraseFound || !readyToProcess) {
+
+        // Saying the wake phrase opens a multi-turn conversation. After that,
+        // the user can speak naturally after each reply without repeating it.
+        if (!conversationActive && !wakePhraseFound) {
             scheduleListening(350)
             return
         }
 
         readyToProcess = false
         handler.removeCallbacks(restartRunnable)
-        updateNotification("RAYMOND heard you")
 
         val command = normalized
             .replace("hey raymond", "")
             .replaceFirst(Regex("^raymond"), "")
             .trim()
 
+        if (!conversationActive) conversationActive = true
+        updateNotification("RAYMOND is listening in conversation mode")
+
+        val stopPhrases = listOf(
+            "stop listening", "stop conversation", "end conversation",
+            "that's all", "that is all", "goodbye", "go to sleep"
+        )
+        if (stopPhrases.any { command == it || command.contains(it) }) {
+            conversationActive = false
+            speak("Understood. I'll wait for you to say Hey Raymond again.")
+            return
+        }
+
         if (command.isBlank()) {
-            speak("I'm listening. What do you need?")
+            speak("I'm listening. What would you like to talk about?")
             return
         }
 
